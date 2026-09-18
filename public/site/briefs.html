@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Saved briefs — Harness Studio</title>
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-brand" href="index.html"><span>H</span>Harness Studio</a>
+      <nav class="site-nav">
+        <a href="index.html">Overview</a>
+        <a href="brief.html" id="nav-brief">New brief</a>
+        <a href="briefs.html" aria-current="page">Briefs</a>
+      </nav>
+    </header>
+
+    <main class="site-main">
+      <h1>Saved briefs <span class="count" id="brief-count"></span></h1>
+      <p class="lede">
+        Persisted in this browser with <code>localStorage</code>. Anything the
+        agent submitted is a genuine record created through the form.
+      </p>
+
+      <ul class="brief-list" id="brief-list"></ul>
+
+      <p class="empty" id="brief-empty" hidden>
+        No briefs yet. Create one from the New brief page.
+      </p>
+
+      <div class="button-row">
+        <a class="btn" href="brief.html">New brief</a>
+        <button class="btn btn-danger" type="button" id="brief-clear">
+          Clear all
+        </button>
+      </div>
+    </main>
+
+    <script src="site.js"></script>
+  </body>
+</html>

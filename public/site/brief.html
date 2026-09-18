@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New review brief — Harness Studio</title>
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-brand" href="index.html"><span>H</span>Harness Studio</a>
+      <nav class="site-nav">
+        <a href="index.html">Overview</a>
+        <a href="brief.html" aria-current="page">New brief</a>
+        <a href="briefs.html" id="nav-briefs">Briefs</a>
+      </nav>
+    </header>
+
+    <main class="site-main">
+      <h1>New review brief</h1>
+      <p class="lede">
+        Every field below is a real form control. Submitting validates the
+        input, saves the record, and navigates to the Briefs page.
+      </p>
+
+      <form id="brief-form" novalidate>
+        <div class="field">
+          <label for="brief-title">Title</label>
+          <input
+            type="text"
+            id="brief-title"
+            name="title"
+            placeholder="Short summary of the change"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="field">
+          <label for="brief-repo">Package</label>
+          <select id="brief-repo" name="repo">
+            <option value="">Select a package…</option>
+            <option value="harness-studio">harness-studio</option>
+            <option value="compare-model">compare-model</option>
+            <option value="evidence-runner">evidence-runner</option>
+            <option value="shell-ui">shell-ui</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="brief-severity">Severity</label>
+          <select id="brief-severity" name="severity">
+            <option value="minor">Minor</option>
+            <option value="major">Major</option>
+            <option value="blocker">Blocker</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="brief-summary">Summary</label>
+          <textarea
+            id="brief-summary"
+            name="summary"
+            placeholder="What changed, and what reviewers should look at first."
+          ></textarea>
+          <p class="hint">Rendered as Markdown in the pull request.</p>
+        </div>
+
+        <div class="field">
+          <label class="checkbox">
+            <input type="checkbox" id="brief-tests" name="tests" />
+            Include verification evidence
+          </label>
+        </div>
+
+        <p class="error" id="brief-error" hidden></p>
+
+        <div class="button-row">
+          <button class="btn" type="submit" id="brief-submit">Save brief</button>
+          <a class="btn btn-ghost" href="index.html">Cancel</a>
+        </div>
+      </form>
+    </main>
+
+    <script src="site.js"></script>
+  </body>
+</html>

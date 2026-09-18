@@ -1,118 +1,175 @@
 # Window in Window
 
-A live product-demo component: a complete fake desktop app rendered as **real DOM
-inside your page**, like the interface preview on the Qoder homepage. No
-screenshots, no video, no iframe, no backend — just a scripted mock timeline that
-plays, loops, and hands control to the visitor when they click into it.
+A live product-demo component: a framed "window inside the window" on your page,
+scaled to fit with a single CSS transform. It ships in two variants.
+
+| Variant | What is inside the window | Content |
+| ------- | ------------------------- | ------- |
+| **Real site** (`BrowserEmbed`) | A browser — tabs, back/forward/reload, address bar — wrapping a genuine `<iframe>` | A real multi-page site in `public/site/`, driven by a real automation script |
+| **Scripted mock** (`LiveEmbed`) | A fake desktop agent app rendered as DOM | A mock timeline in `src/embed/mock.ts` |
 
 ```bash
 npm install
 npm run dev
 ```
 
-## How it works
+---
 
-The whole illusion rests on one idea: **the inner app is laid out at a fixed
-design size and scaled to fit with a single transform.**
+## The same-origin constraint (read this first)
 
-```
-.hm-root          the stage (your section on the page)
-├── backdrop      decorative ribbons, tracing dashes, breathing focus rings
-└── .hm-frame     the measured box
-    └── .hm-canvas  1280×800, out of flow, transform: scale(var(--fit))
-        └── .nq-app  the fake product
-```
+The "Real site" variant navigates a real page and **types real values into real
+form fields**. That is only possible because the embedded site is served from
+the app's own origin. What you may do to an iframe depends entirely on origin,
+and this is a browser security boundary, not a library limitation:
 
-`useFitScale` observes the frame and writes a single CSS variable:
+| | Same origin (`/site/…`) | Cross-origin (`https://other.com`) |
+| --- | --- | --- |
+| Render it | Yes | Only if the site permits framing |
+| Read its URL and title | Yes | No — throws `SecurityError` |
+| Navigate it programmatically | Yes | Only by reassigning `src` |
+| **Read or fill its DOM** | **Yes** | **Never** |
+
+Two separate things block third-party sites:
+
+1. **`X-Frame-Options` / `frame-ancestors`.** Most large sites refuse framing
+   outright, so nothing renders. The component detects the silent failure and
+   shows a "refused to be embedded" panel.
+2. **Same-origin policy.** Even when a cross-origin site *does* render, reading
+   or writing its document is forbidden. The component reports
+   "Cross-origin — view only" and the automation refuses to run.
+
+Type any external URL into the address bar to see both behaviours.
+
+**If you need automation against a site you do not control**, the browser cannot
+do it alone. That requires a backend: either an HTML-rewriting proxy that
+re-serves the site on your origin, or a headless browser (Playwright,
+Browserbase, CDP screencast) streaming frames with input injected server-side.
+
+---
+
+## How the window scales
+
+The interface inside is laid out at a **fixed design size** (1280×800) and
+scaled to fit:
 
 ```
 --fit = min(frameWidth / 1280, frameHeight / 800)
 ```
 
-That means resizing the page is **one compositor operation**. The app inside
-never reflows, never re-renders, and never has to be responsive — it is always
-laid out at exactly 1280×800, so every padding and font size stays pixel-exact
-at any viewport.
+`useFitScale` observes the frame and writes that one CSS variable, so resizing
+the page is a single compositor operation. Nothing inside reflows or re-renders,
+which is why it stays pixel-exact at any viewport.
 
-Two details make this work reliably:
+Two details this depends on:
 
-- The canvas is **absolutely positioned**. An in-flow child at design size would
-  stretch the very element being measured, pinning `--fit` at 1 and overflowing.
+- The canvas is **absolutely positioned**. In normal flow it would stretch the
+  very element being measured, pinning `--fit` at 1 and overflowing.
 - It is centred with `transform: scale(f) translate(-50%, -50%)` and
   `transform-origin: 0 0`. Scaling *before* translating puts the −50% shift in
-  scaled space, so it stays exactly centred at every scale — `margin: auto`
-  cannot do this, because over-constrained absolute positioning drops it.
+  scaled space. `margin: auto` cannot do this — over-constrained absolute
+  positioning discards it.
 
-Anything measuring DOM inside the canvas must use `offsetWidth` / `offsetHeight`
-rather than `getBoundingClientRect()`, which comes back multiplied by `--fit`.
+Anything measuring DOM inside the canvas must use `offsetWidth` / `offsetHeight`,
+never `getBoundingClientRect()`, which returns values multiplied by `--fit`.
+
+---
+
+## How the automation works
+
+`src/embed/browser/automation.ts` reaches into the same-origin frame and does
+genuine DOM work. Nothing is faked in the parent page:
+
+- Values are written through the **native prototype setters**, then real
+  `input` and `change` events are dispatched — so the embedded page reacts
+  exactly as it would to a human, whatever framework it uses.
+- Those prototypes are taken from **the frame's own realm**
+  (`frame.contentWindow.HTMLInputElement`). `instanceof` is false across
+  realms, so the parent's constructors would never match.
+- A pointer dot is injected into the frame and glides to each control, so you
+  can watch it work.
+
+`waitForNavigation` compares **document identity**, not the URL string. That
+matters because navigating to the page you are already on, or reloading,
+creates a new document while `location.href` never changes — a URL comparison
+would hang forever.
+
+The script lives in `src/embed/browser/script.ts` as a list of steps
+(`navigate`, `click`, `type`, `select`, `check`, `verify`, `pause`). It opens the
+site, follows a link, fills five controls, submits the form, and confirms the
+saved record. The result is a real entry in the embedded site's
+`localStorage`.
+
+---
 
 ## Keeping it smooth
 
-Measured at a locked 8.3 ms median frame time (120 Hz), zero frames over 20 ms:
+Steady state is **8.3 ms median frame time** — a locked 120 Hz, identical to the
+variant with no iframe at all. Getting there was mostly about what *not* to
+animate. Each of these was measured, not guessed:
 
-- Only `transform`, `opacity` and `stroke-dashoffset` are animated. Nothing that
-  animates touches layout.
-- Blurred backdrop layers are promoted with `will-change: transform`, so the
-  blur is rasterised once instead of every frame.
-- Playback is **one pending timer at a time**, and an `IntersectionObserver`
-  stops it entirely when the embed scrolls out of view.
+- **Never animate `transform` on a blurred layer.** Chrome re-runs the blur
+  every frame instead of caching it. The drifting `filter: blur(22px)` ribbon
+  cost ~7 ms/frame by itself; `will-change: transform` did not help. It is now
+  static.
+- **Radial gradients do not need `blur()`.** The glow blobs had
+  `filter: blur(90px)` over an already-smooth `radial-gradient` — pure cost,
+  zero visual gain. Removed.
+- **A `backdrop-filter` *inside* the iframe wrecked the *host* page.** The
+  embedded site's sticky header used `backdrop-filter: blur(10px)`, which
+  re-evaluated whenever the embed's backdrop animation repainted behind it:
+  16.5 ms versus 8.3 ms. The header is now opaque.
+- **Only one animated backdrop layer.** Two concurrent ones measured 16.3 ms
+  against 8.3 ms for either alone, so the dash tracing animates and the focus
+  rings stay still.
+- Playback in the mock variant keeps **one pending timer**, stopped entirely by
+  an `IntersectionObserver` when off screen.
 - The typewriter is a single `requestAnimationFrame` loop mutating one text
   node — no per-character React state.
-- Auto-scroll is an eased rAF loop instead of `scroll-behavior: smooth`, so it
-  can be retargeted mid-flight while new content streams in.
-- Only the newest revealed beat animates, so looping never re-animates history.
 - `prefers-reduced-motion` collapses every animation.
+
+Measure it yourself in the console; note that an unfocused window throttles
+`requestAnimationFrame` and will report 16.7 ms or 25 ms (exact vsync multiples)
+regardless of the code.
+
+---
 
 ## Dropping it into an existing project
 
-The component is dependency-free (React only) and ships its own plain CSS, so
-copy the `src/embed/` folder across and render it:
+Dependency-free apart from React, with its own plain CSS. Copy `src/embed/`
+across, plus `public/site/` if you want the demo target:
 
 ```tsx
+import { BrowserEmbed } from "./embed/browser/BrowserEmbed";
 import { LiveEmbed } from "./embed/LiveEmbed";
 
-<LiveEmbed height="min(72vh, 660px)" />;
+<BrowserEmbed height="min(76vh, 700px)" />;
+<LiveEmbed height={620} />;
 ```
 
-| Prop        | Default | Notes                                              |
-| ----------- | ------- | -------------------------------------------------- |
-| `height`    | `620`   | Stage height. The app inside scales to fit it.     |
-| `className` | —       | Appended to the root, for your own layout wrapper. |
-
-The stylesheets are imported by `LiveEmbed.tsx` itself. Every class is namespaced
-(`hm-` for the stage, `nq-` for the app) and all inner styling is scoped under
-`.nq-app`, which also resets its own typography and buttons — so it will not
-inherit from or leak into your design system.
+Both take `height` and `className`. Stylesheets are imported by the components
+themselves. Classes are namespaced — `hm-` for the stage, `bw-` for the browser,
+`nq-` for the mock app — and the inner styles reset their own typography and
+buttons, so nothing inherits from or leaks into your design system.
 
 ### Files
 
-| File                | Role                                                      |
-| ------------------- | --------------------------------------------------------- |
-| `LiveEmbed.tsx`     | Public component: stage, fit-scaling, playback, controls  |
-| `MotionBackdrop.tsx`| Decorative animated background                            |
-| `DemoApp.tsx`       | The fake product shell (header, conversation, composer)   |
-| `Sidebar.tsx`       | Sidebar with the animated mode switcher                   |
-| `Conversation.tsx`  | Renders each timeline beat type                           |
-| `hooks.ts`          | `useFitScale`, `usePlayback`, `useTypewriter`, autoscroll  |
-| `mock.ts`           | **All content lives here** — design size and the script   |
-| `embed.css`         | Stage, backdrop, framing, controls                        |
-| `app.css`           | The fake product's interface                              |
+| File | Role |
+| --- | --- |
+| `EmbedStage.tsx` | Shared window: backdrop, measured frame, fit-scaling |
+| `MotionBackdrop.tsx` | Decorative background |
+| `hooks.ts` | `useFitScale`, `useInView`, `usePlayback`, typewriter, autoscroll |
+| `browser/BrowserEmbed.tsx` | Real-site variant entry point |
+| `browser/BrowserApp.tsx` | Browser chrome, iframe, agent step panel |
+| `browser/useBrowser.ts` | History stack, load/blocked/cross-origin detection |
+| `browser/automation.ts` | The driver that fills the real page |
+| `browser/script.ts` | **The steps the agent performs** |
+| `LiveEmbed.tsx`, `DemoApp.tsx`, `Sidebar.tsx`, `Conversation.tsx` | Mock variant |
+| `mock.ts` | Design size, and the mock script |
+| `public/site/` | The real embedded site (3 pages, a form, `localStorage`) |
 
-## Changing the content
+## Pointing it at your own app
 
-Everything shown is data in `src/embed/mock.ts`. Edit the `BEATS` array to
-script a different run — each beat has a `hold` in milliseconds controlling how
-long before the next appears. Beat kinds: `user`, `processed`, `assistant`,
-`activity`, `note`, `group`, `thinking`, `result`.
-
-To show your own product instead, replace `DemoApp` with your interface and keep
-the stage. Change `DESIGN_WIDTH` / `DESIGN_HEIGHT` to match whatever size you
-design it at.
-
-## Interaction
-
-The script keeps running while the cursor merely passes over the panel — it
-pauses only when the visitor actually clicks or tabs into it, so it never
-freezes unexpectedly. From there the app is genuinely usable: the mode switcher
-animates, the file list expands, the composer accepts typing. `Resume` and
-`Replay` sit in the bottom-right corner.
+Change `SITE_HOME` in `browser/script.ts` to any path **on your origin**, then
+rewrite `SCRIPT` with the selectors and values for your own forms. If your app
+runs on a different port in development, proxy it to the same origin in
+`vite.config.ts` — the automation needs one origin, not one server.

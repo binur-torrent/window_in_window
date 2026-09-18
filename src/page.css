@@ -44,6 +44,40 @@
   line-height: 1.6;
 }
 
+.page-switch {
+  display: inline-flex;
+  gap: 3px;
+  margin-top: 24px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.page-switch button {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: #8b9a92;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+.page-switch button:hover {
+  color: #e6ece8;
+}
+
+.page-switch button[aria-selected="true"] {
+  background: rgba(116, 201, 127, 0.14);
+  color: #91d59a;
+}
+
 .page-notes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));

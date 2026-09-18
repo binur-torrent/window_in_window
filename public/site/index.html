@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Harness Studio — Evidence Results</title>
+    <link rel="stylesheet" href="site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="site-brand" href="index.html"><span>H</span>Harness Studio</a>
+      <nav class="site-nav">
+        <a href="index.html" aria-current="page">Overview</a>
+        <a href="brief.html" id="nav-brief">New brief</a>
+        <a href="briefs.html" id="nav-briefs">Briefs</a>
+      </nav>
+    </header>
+
+    <main class="site-main">
+      <span class="eyebrow">Evidence results</span>
+      <h1>Turn a benchmark run into a review brief.</h1>
+      <p class="lede">
+        This is a real, multi-page site with real forms — not a mock. It is
+        served from the same origin as the page embedding it, which is what lets
+        the agent navigate it and fill it in for you.
+      </p>
+
+      <div class="card-grid">
+        <div class="card">
+          <h3>121 tests passing</h3>
+          <p>Last run 4 minutes ago on <code>main</code>.</p>
+        </div>
+        <div class="card">
+          <h3>2 regressions</h3>
+          <p>Both in the compare-model package.</p>
+        </div>
+        <div class="card">
+          <h3>+203 / −2</h3>
+          <p>Across six files since the last brief.</p>
+        </div>
+      </div>
+
+      <h2>How briefs work</h2>
+      <p class="lede">
+        A brief is a short Markdown summary you can paste into a pull request or
+        an issue. Fill in the form, submit it, and it shows up on the Briefs
+        page — stored locally in your browser.
+      </p>
+
+      <div class="button-row">
+        <a class="btn" href="brief.html" id="cta-brief">Create a review brief</a>
+        <a class="btn btn-ghost" href="briefs.html">View saved briefs</a>
+      </div>
+    </main>
+  </body>
+</html>
