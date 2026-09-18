@@ -1,0 +1,266 @@
+/* Outer stage: the framing, the motion backdrop and the fit-to-container
+   scaling that makes the inner app behave like a window inside the window. */
+
+.hm-root {
+  --hm-radius: 18px;
+  --hm-accent: #91d59a;
+
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--hm-radius);
+  background: radial-gradient(120% 140% at 50% 0%, #10201a 0%, #080c0b 55%, #050807 100%);
+  contain: paint;
+}
+
+/* ---------------------------------------------------------------- backdrop */
+
+.hm-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.hm-ribbons,
+.hm-dashes {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  display: block;
+}
+
+.hm-ribbons {
+  filter: blur(22px) saturate(145%);
+  opacity: 0.85;
+  animation: hm-drift 26s ease-in-out infinite;
+  /* Promoted so the blur is rasterised once and the drift is a pure
+     compositor transform rather than a per-frame filter repaint. */
+  will-change: transform;
+}
+
+.hm-dashes path {
+  stroke: var(--hm-accent);
+  stroke-width: 2;
+  stroke-dasharray: 7 340;
+  animation: hm-trace 7.5s linear infinite;
+}
+
+@keyframes hm-trace {
+  from {
+    stroke-dashoffset: 700;
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  88% {
+    opacity: 0.9;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes hm-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-2.5%, 1.5%, 0) scale(1.06);
+  }
+}
+
+.hm-focus {
+  position: absolute;
+  display: block;
+  line-height: 0;
+  animation: hm-breathe 4.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.hm-focus-left {
+  top: 22%;
+  left: 7%;
+}
+
+.hm-focus-right {
+  right: 9%;
+  bottom: 18%;
+  animation-delay: 1.4s;
+}
+
+@keyframes hm-breathe {
+  0%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.35;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
+.hm-glow {
+  position: absolute;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.75;
+  will-change: transform;
+}
+
+.hm-glow-a {
+  top: -22%;
+  left: -8%;
+  background: radial-gradient(circle, rgba(58, 174, 70, 0.55), transparent 68%);
+  animation: hm-float 19s ease-in-out infinite;
+}
+
+.hm-glow-b {
+  right: -12%;
+  bottom: -26%;
+  background: radial-gradient(circle, rgba(27, 137, 55, 0.45), transparent 70%);
+  animation: hm-float 23s ease-in-out infinite reverse;
+}
+
+@keyframes hm-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(6%, -5%, 0);
+  }
+}
+
+/* ------------------------------------------------------------------- frame */
+
+.hm-stage {
+  position: absolute;
+  inset: 0;
+  padding: clamp(14px, 2.4vw, 34px);
+}
+
+.hm-frame {
+  --fit: 1;
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* The canvas is taken out of flow on purpose: at design size it is larger than
+   the frame, and an in-flow child would stretch the very element being
+   measured. Scaling before translating puts the -50% shift in scaled space, so
+   the box stays exactly centred at every scale. */
+.hm-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: scale(var(--fit)) translate(-50%, -50%);
+  transform-origin: 0 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b0f0e;
+  box-shadow:
+    0 0 0 1px rgba(145, 213, 154, 0.14),
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 30px 70px -20px rgba(0, 0, 0, 0.85);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.hm-controls {
+  position: absolute;
+  right: 14px;
+  bottom: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 11px/1 ui-sans-serif, system-ui, sans-serif;
+  color: rgba(226, 244, 229, 0.72);
+  opacity: 0.4;
+  transition: opacity 0.22s ease;
+}
+
+.hm-root:hover .hm-controls,
+.hm-root:focus-within .hm-controls {
+  opacity: 1;
+}
+
+.hm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(145, 213, 154, 0.2);
+  background: rgba(8, 14, 12, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.hm-badge i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(145, 213, 154, 0.5);
+}
+
+.hm-badge[data-live] i {
+  background: var(--hm-accent);
+  animation: hm-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes hm-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+.hm-controls button {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(145, 213, 154, 0.2);
+  background: rgba(8, 14, 12, 0.72);
+  backdrop-filter: blur(8px);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.hm-controls button:hover {
+  border-color: rgba(145, 213, 154, 0.55);
+  color: #eafaec;
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-root *,
+  .hm-root *::before,
+  .hm-root *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
