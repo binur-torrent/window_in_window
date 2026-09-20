@@ -114,16 +114,28 @@ export default function App() {
       ) : (
         <section className="page-notes page-notes-pentest">
           <div>
-            <h2>Three realistic scan paths</h2>
-            <p>Watch a repository run SAST, a web target run DAST, then a combined project run the full assessment.</p>
+            <h2>The real VulnSight UI</h2>
+            <p>
+              The viewport frames the actual product from{" "}
+              <code>localhost:3000</code> — its own routes, components, and
+              controls, driven through genuine DOM events.
+            </p>
           </div>
           <div>
-            <h2>Findings become fixes</h2>
-            <p>The walkthrough follows live scan progress into a finding, a proposed patch, and a ready-to-review pull request.</p>
+            <h2>A backend that cannot fail</h2>
+            <p>
+              A mock API is injected into the frame ahead of the app, so the
+              whole workflow — scan, live terminal, findings, fix PR — plays the
+              same way every time with no database or scanner behind it.
+            </p>
           </div>
           <div>
-            <h2>Safe mock data</h2>
-            <p>Every repository, domain, vulnerability, and pull request in this preview is fictional and stays in the browser.</p>
+            <h2>Take over whenever you want</h2>
+            <p>
+              Click anywhere inside to stop the replay and keep working from the
+              exact page it reached. <code>Replay</code> starts the run again
+              from a clean slate.
+            </p>
           </div>
         </section>
       )}

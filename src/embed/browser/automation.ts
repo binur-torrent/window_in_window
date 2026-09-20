@@ -38,7 +38,15 @@ export function isSameOrigin(frame: HTMLIFrameElement | null) {
 
 /* ------------------------------------------------------------- injected UI */
 
-const OVERLAY_STYLE = `
+/** Accent of the injected pointer, as `r, g, b`. Stages override it to match
+ *  the surface they drive. */
+let accent = "116, 201, 127";
+
+export function setAgentAccent(rgb: string) {
+  accent = rgb;
+}
+
+const overlayStyle = (rgb: string) => `
 .__agent-cursor {
   position: fixed;
   top: 0;
@@ -48,8 +56,8 @@ const OVERLAY_STYLE = `
   height: 18px;
   margin: -9px 0 0 -9px;
   border-radius: 50%;
-  background: rgba(116, 201, 127, 0.28);
-  box-shadow: 0 0 0 1.5px #74c97f, 0 0 18px rgba(116, 201, 127, 0.55);
+  background: rgba(${rgb}, 0.28);
+  box-shadow: 0 0 0 1.5px rgb(${rgb}), 0 0 18px rgba(${rgb}, 0.55);
   pointer-events: none;
   opacity: 0;
   transition:
@@ -59,9 +67,9 @@ const OVERLAY_STYLE = `
 .__agent-cursor[data-visible="true"] { opacity: 1; }
 .__agent-cursor[data-press="true"] { transform: var(--at) scale(0.55); }
 .__agent-focus {
-  outline: 2px solid #74c97f !important;
+  outline: 2px solid rgb(${rgb}) !important;
   outline-offset: 2px !important;
-  box-shadow: 0 0 0 5px rgba(116, 201, 127, 0.16) !important;
+  box-shadow: 0 0 0 5px rgba(${rgb}, 0.16) !important;
   transition: outline-color 0.2s ease, box-shadow 0.2s ease;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -70,11 +78,16 @@ const OVERLAY_STYLE = `
 `;
 
 function ensureOverlay(doc: Document) {
-  if (!doc.getElementById("__agent-style")) {
-    const style = doc.createElement("style");
+  let style = doc.getElementById("__agent-style") as HTMLStyleElement | null;
+  if (!style) {
+    style = doc.createElement("style");
     style.id = "__agent-style";
-    style.textContent = OVERLAY_STYLE;
     doc.head.appendChild(style);
+  }
+  /* Restyling only on change keeps this cheap on every cursor move. */
+  if (style.dataset.accent !== accent) {
+    style.dataset.accent = accent;
+    style.textContent = overlayStyle(accent);
   }
 
   let cursor = doc.getElementById("__agent-cursor");
@@ -162,6 +175,90 @@ export async function waitForNavigation(
   }
 
   throw new Error("Timed out waiting for navigation");
+}
+
+/** The frame's current path and query, or `null` if it is not readable. */
+export function getPath(frame: HTMLIFrameElement | null) {
+  if (!frame) return null;
+  try {
+    const location = frame.contentWindow?.location;
+    return location ? `${location.pathname}${location.search}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves once the frame's path satisfies `test`.
+ *
+ * A single-page app routed on the client swaps the whole view without ever
+ * replacing the document, so `waitForNavigation` — which compares document
+ * identity — never fires for it. Watching the location covers both cases.
+ */
+export async function waitForPath(
+  frame: HTMLIFrameElement,
+  test: (path: string) => boolean,
+  timeout = 12000,
+) {
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    const path = getPath(frame);
+    if (path && test(path) && getDocument(frame)?.readyState !== "loading") {
+      return path;
+    }
+    await sleep(80);
+  }
+
+  throw new Error("Timed out waiting for the page to change");
+}
+
+/** Resolves once some element matching `selector` renders the given text. */
+export async function waitForText(
+  frame: HTMLIFrameElement,
+  selector: string,
+  text: string,
+  timeout = 20000,
+) {
+  const deadline = Date.now() + timeout;
+
+  while (Date.now() < deadline) {
+    if (findByText(frame, selector, text)) return true;
+    await sleep(120);
+  }
+
+  throw new Error(`Timed out waiting for "${text}"`);
+}
+
+/**
+ * Innermost visible element matching `selector` whose text contains `text`.
+ *
+ * Interfaces nest their controls — a clickable card that contains a "Verify"
+ * button also *contains the word* "Verify". Discarding any match that holds
+ * another match picks the button the label actually belongs to, rather than
+ * the container that happens to enclose it.
+ */
+export function findByText(
+  frame: HTMLIFrameElement,
+  selector: string,
+  text: string,
+) {
+  const doc = getDocument(frame);
+  if (!doc) return null;
+  const needle = text.toLowerCase();
+
+  const matches = Array.from(doc.querySelectorAll<HTMLElement>(selector)).filter(
+    (candidate) => {
+      if (candidate.offsetParent === null && candidate.tagName !== "BODY") return false;
+      return (candidate.textContent ?? "").toLowerCase().includes(needle);
+    },
+  );
+
+  return (
+    matches.find(
+      (candidate) => !matches.some((other) => other !== candidate && candidate.contains(other)),
+    ) ?? null
+  );
 }
 
 /* ----------------------------------------------------------------- actions */
@@ -291,4 +388,33 @@ export async function clickElement(
   focusRing(element, false);
 
   element.click();
+}
+
+/** Clicks a visible element by its rendered label. Useful for headless UI
+ * controls whose generated elements do not expose stable IDs. */
+export async function clickElementByText(
+  frame: HTMLIFrameElement,
+  selector: string,
+  text: string,
+  timeout = 12000,
+) {
+  const deadline = Date.now() + timeout;
+  let element: HTMLElement | null = null;
+
+  while (Date.now() < deadline && !element) {
+    element = findByText(frame, selector, text);
+    if (!element) await sleep(90);
+  }
+
+  const doc = getDocument(frame);
+  if (!doc) throw new Error("Frame is not accessible");
+  if (!element) throw new Error(`Could not find ${selector} containing "${text}"`);
+
+  element.scrollIntoView({ block: "center", behavior: "smooth" });
+  await moveCursorTo(doc, element);
+  focusRing(element, true);
+  await pressCursor(doc);
+  element.click();
+  await sleep(180);
+  focusRing(element, false);
 }
