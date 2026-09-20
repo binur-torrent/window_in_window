@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { LiveEmbed } from "./embed/LiveEmbed";
 import { BrowserEmbed } from "./embed/browser/BrowserEmbed";
+import { PentestEmbed } from "./embed/pentest/PentestEmbed";
 import "./page.css";
 
-type Variant = "real" | "mock";
+type Variant = "real" | "mock" | "pentest";
 
 export default function App() {
   const [variant, setVariant] = useState<Variant>("real");
@@ -38,11 +39,21 @@ export default function App() {
           >
             Scripted mock
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={variant === "pentest"}
+            onClick={() => setVariant("pentest")}
+          >
+            Pentest
+          </button>
         </div>
       </section>
 
       {variant === "real" ? (
         <BrowserEmbed height="min(76vh, 700px)" />
+      ) : variant === "pentest" ? (
+        <PentestEmbed height="min(76vh, 700px)" />
       ) : (
         <LiveEmbed height="min(76vh, 700px)" />
       )}
@@ -74,7 +85,7 @@ export default function App() {
             </p>
           </div>
         </section>
-      ) : (
+      ) : variant === "mock" ? (
         <section className="page-notes">
           <div>
             <h2>Fixed design surface</h2>
@@ -98,6 +109,21 @@ export default function App() {
               can work the mode switcher, expand the file list, or type in the
               composer.
             </p>
+          </div>
+        </section>
+      ) : (
+        <section className="page-notes page-notes-pentest">
+          <div>
+            <h2>Three realistic scan paths</h2>
+            <p>Watch a repository run SAST, a web target run DAST, then a combined project run the full assessment.</p>
+          </div>
+          <div>
+            <h2>Findings become fixes</h2>
+            <p>The walkthrough follows live scan progress into a finding, a proposed patch, and a ready-to-review pull request.</p>
+          </div>
+          <div>
+            <h2>Safe mock data</h2>
+            <p>Every repository, domain, vulnerability, and pull request in this preview is fictional and stays in the browser.</p>
           </div>
         </section>
       )}
