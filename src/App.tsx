@@ -114,19 +114,19 @@ export default function App() {
       ) : (
         <section className="page-notes page-notes-pentest">
           <div>
-            <h2>The real VulnSight UI</h2>
+            <h2>A frontend-only VulnSight</h2>
             <p>
-              The viewport frames the actual product from{" "}
-              <code>localhost:3000</code> — its own routes, components, and
-              controls, driven through genuine DOM events.
+              The viewport frames a self-contained mock of the product — same
+              routes, controls, and workflow — with every record stored in this
+              page. The real pentester project does not need to be running.
             </p>
           </div>
           <div>
             <h2>A backend that cannot fail</h2>
             <p>
-              A mock API is injected into the frame ahead of the app, so the
-              whole workflow — scan, live terminal, findings, fix PR — plays the
-              same way every time with no database or scanner behind it.
+              Projects, scans, the live terminal, findings, and settings all
+              come from mock data in the frontend, so the replay plays the same
+              way every time with no API or scanner behind it.
             </p>
           </div>
           <div>
